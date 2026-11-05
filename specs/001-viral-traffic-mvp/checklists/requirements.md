@@ -1,48 +1,54 @@
 # Specification Quality Checklist: SystemScope MVP — Your App Just Went Viral
 
-**Purpose**: Validate specification completeness and quality before planning.
+**Purpose**: Validate requirements quality before planning.
 **Created**: 2026-11-05
 **Feature**: [spec.md](../spec.md)
-**Review Ownership**: Requirements-quality review maintained by speckit-specify.
-**Marker Semantics**: Checked items confirm requirements quality, not working implementation.
+**Review Ownership**: Maintained by speckit-specify; reviewed against constitution v2.0.0.
+**Marker Semantics**: Checked means requirements reviewed, not implementation verified.
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, transport APIs).
-- [x] Focused on user value and learning needs.
-- [x] Written with plain-language explanations of necessary domain terms.
-- [x] All mandatory template sections completed in order.
+- [x] No implementation decisions beyond constitution-mandated architecture.
+- [x] Focused on learner value and the mobile/frontend engineer persona.
+- [x] Necessary technical terms explained in the glossary.
+- [x] Mandatory template sections complete and in order.
 
 ## Requirement Completeness
 
-- [x] No unresolved clarification markers remain.
-- [x] Requirements are testable and unambiguous.
-- [x] Success criteria are measurable.
-- [x] Success criteria are technology-agnostic.
-- [x] Acceptance scenarios use Given/When/Then and cover requirements.
-- [x] Required edge cases are identified with observable outcomes.
-- [x] Scope is explicitly bounded to the one traffic-spike scenario.
-- [x] Dependencies and default assumptions are identified with units.
+- [x] No unresolved clarification markers.
+- [x] Requirements testable and unambiguous.
+- [x] Success criteria measurable.
+- [x] Success criteria describe observable outcomes without new technology choices.
+- [x] Given/When/Then acceptance scenarios defined.
+- [x] Required edge cases have explicit outcomes.
+- [x] Single-scenario scope and non-goals explicit.
+- [x] Dependencies and assumptions identified, with units and limitations.
 
 ## Feature Readiness
 
-- [x] Every functional requirement maps to story or cross-cutting acceptance criteria.
-- [x] User scenarios cover landing, experimentation, prediction, lesson, comparison, and access.
-- [x] Success outcomes have defined configurations, windows, thresholds, and evidence.
-- [x] Model behavior is specified without prescribing implementation architecture or packages.
+- [x] All functional requirements covered by story or cross-cutting acceptance criteria.
+- [x] Stories cover initial working state, predictions, scaling, remedy, replay, and access.
+- [x] Three named automated demonstrations have quantitative expected outcomes.
+- [x] Model semantics specify behavior, not implementation algorithms or new packages.
 
 ## Notes
 
-- Reviewed against constitution v1.0.0 and the resolved Spec Kit templates.
-- User-requested model formulas, resource semantics, and bounds are behavioral requirements,
-  not implementation code. Technology and architecture remain for planning.
-- P0/P1 use the user's requested priority scheme; both are first-release obligations.
-- Initial review corrected the latency retention budget to include requests already in
-  flight at the observation-window boundary: 100,000 + 1,856 samples maximum.
-- Acceptance coverage: FR-001–FR-003 → Story 1; FR-004 and FR-011 → Story 3;
-  FR-005–FR-008 → Stories 1/4 and data rules; FR-009–FR-010 → Story 2;
-  FR-012–FR-013/FR-016 → cross-cutting scenarios 1–10 and model/bounds;
-  FR-014–FR-015 → Story 4; FR-017–FR-019 → cross-cutting 11–12 and release criteria.
-- Quantitative lesson targets are acceptance obligations supported by stated capacity bounds;
-  they have not been verified by executing an engine in this specification-only phase.
-- No unresolved quality issues or requested follow-up questions. Ready for speckit-plan.
+- Reuses the existing feature directory; no duplicate MVP feature or application code created.
+- FR-001–FR-006: Story 1 and lesson narrative; FR-002/FR-007–FR-008: Stories 2/3;
+  FR-009–FR-011: Stories 2/3, cross-cutting scenarios 1–7/10, and budget/state rules;
+  FR-012–FR-013: Story 4 and glossary; FR-014/FR-016–FR-017: cross-cutting scenario 8,
+  SC-008/SC-009, and constitution gates; FR-015: cross-cutting scenario 9 and ledger A-15.
+- Replaced old landing journey and cloud-hosting exclusions; clarified browser worker versus
+  simulated API workers, seed behavior, instantaneous versus averaged utilization, separate
+  failure counts, memory/history bounds, cancellation, and static routing requirements.
+- Fixed-rate arrivals and fixed cache schedule deliberately do not vary with seed; disclosed
+  in controls/glossary/ledger instead of implying unsupported randomness.
+- Quantitative demonstrations are acceptance obligations derived from resource assumptions;
+  no engine was implemented or executed in this specification-only phase.
+- Optional local storage and traffic slider do not block MVP readiness; all core stories do.
+- Applied analysis remediation: T037 distinguishes unsaturated baseline from saturated spike;
+  all T021 tests are explicitly gated at T026 with their handlers implemented in foundation;
+  mode switches create new immutable runs with explicit endpoints, draft/reference handling,
+  accepted/settled acknowledgments and dedicated acceptance/regression tests.
+- No outstanding findings from the three-item analysis. Documentation rechecked; runtime
+  implementation/validation remains pending. Ready for implementation after review.
