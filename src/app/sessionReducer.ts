@@ -1,3 +1,4 @@
+import type { ComponentId } from "../components/componentGuide";
 import type { Config } from "../simulation/config";
 import type { Predictions, View } from "../worker/protocol";
 export interface Session {
@@ -5,7 +6,7 @@ export interface Session {
   error: string;
   predictions: Partial<Predictions>;
   draft: Config | null;
-  selected: string | null;
+  selected: ComponentId | null;
   motion: boolean;
   assumptions: boolean;
   notice: string;

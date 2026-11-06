@@ -19,7 +19,7 @@ export default function LessonPanel({
     <section className="card lesson-panel">
       <div className="section-heading">
         <h2>
-          03 <span>Predict → Run → Explain</span>
+          <span>Predict → Run → Explain</span>
         </h2>
         <span className="eyebrow">STEP {view.stage} OF 5</span>
       </div>
@@ -39,9 +39,9 @@ export default function LessonPanel({
         <div className="predictions">
           {(
             [
-              ["throughput", "Completed throughput"],
-              ["latency", "p95 response latency"],
-              ["queue", "Mean queued requests"],
+              ["throughput", "Requests completed / second (throughput)"],
+              ["latency", "Response time for 95% of successes (p95)"],
+              ["queue", "Average requests waiting (queue)"],
             ] as const
           ).map(([key, label]) => (
             <fieldset key={key} disabled={view.status === "running"}>

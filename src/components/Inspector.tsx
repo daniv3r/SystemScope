@@ -1,34 +1,18 @@
+import { ResourceScheme } from "./SystemSchemes";
 import type { View } from "../worker/protocol";
 import { number } from "./Metrics";
-const hints = {
-  clients: {
-    role: "Clients represent incoming requests, such as a page asking for data. Offered RPS means requests arriving per simulated second, not the number of people using the app.",
-    effect: "Increasing traffic adds demand, not capacity. If arrivals exceed what the API or database can handle, requests may wait, time out, or be rejected when the queue is full.",
-  },
-  api: {
-    role: "An API replica is one copy of the application handling requests. CPU slots do the processing; workers hold requests, including while they wait for the database.",
-    effect: "More replicas add API processing capacity, workers, and bounded queue space. This can improve throughput until the shared database becomes the limit. Replicas do not add database service slots.",
-  },
-  db: {
-    role: "The database serves reads that are not answered by the cache. All API replicas share its four service slots; extra requests wait for a connection or a free slot.",
-    effect: "A faster database preset reduces the service time per read, so the same slots can finish more reads per second. It can reduce database waiting, but cannot remove an API processing limit.",
-  },
-  cache: {
-    role: "The cache represents saved read results. A cache hit answers a cacheable read without visiting the database; a miss still needs the database.",
-    effect: "With the configured hit rate, fewer reads reach the database. Each lookup still uses API CPU, so cache helps most when database work is the constraint. It does not multiply every resource’s capacity.",
-  },
-};
+import { componentGuide, type ComponentId } from "./componentGuide";
 export default function Inspector({
   view,
   selected,
   onClose,
 }: {
   view: View;
-  selected: string;
+  selected: ComponentId;
   onClose: () => void;
 }) {
   const o = view.observation;
-  const hint = hints[selected as keyof typeof hints] ?? hints.clients;
+  const hint = componentGuide[selected];
   const panel = useRef<HTMLElement>(null);
   useEffect(() => {
     panel.current?.focus();
@@ -40,26 +24,23 @@ export default function Inspector({
     trigger?.focus();
   }
   return (
-    <section ref={panel} tabIndex={-1} aria-labelledby="inspector-title" className="card inspector" data-testid="inspector">
+    <section ref={panel} tabIndex={-1} id="component-explanation" aria-labelledby="inspector-title" className="card inspector" data-testid="inspector">
       <div className="inspector-heading">
         <h3 id="inspector-title">
-          {selected === "api"
-            ? "API replicas"
-            : selected === "db"
-              ? "Database"
-              : selected === "clients"
-                ? "Clients"
-                : "Cache"}{" "}
-          · inspector
+          {hint.name}
         </h3>
         <button aria-label="Close inspector" onClick={close}>
           ✕
         </button>
       </div>
+      <ResourceScheme view={view} selected={selected} />
       <h4>What it does</h4>
       <p>{hint.role}</p>
-      <h4>How it affects results</h4>
+      <h4>What you can change</h4>
+      <p>{hint.change}</p>
+      <h4>How that can affect results</h4>
       <p>{hint.effect}</p>
+      <details className="resource-details"><summary>Technical details and resource readings</summary>
       {selected === "api" ? (
         <>
           {o.nodes.map((n, i) => (
@@ -152,7 +133,7 @@ export default function Inspector({
           </p>
         </>
       )}
-      <p className="inspector-evidence">{view.insight}</p>
+      </details>
     </section>
   );
 }

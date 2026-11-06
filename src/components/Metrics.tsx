@@ -16,13 +16,13 @@ export default function Metrics({ view }: { view: View }) {
   ];
   const cards = [
     [
-      "Offered / admitted",
+      "Requests arriving / accepted",
       `${number(o.incoming)} / ${number(o.admitted)}`,
       "RPS · observed arrivals / accepted",
     ],
-    ["Completed throughput", number(o.completed), "RPS · successful requests"],
-    ["p95 response latency", number(o.p95), "ms · successful requests only"],
-    ["Pending queue", number(o.queue, 0), `${o.inflight} requests in flight`],
+    ["Requests completed / second (throughput)", number(o.completed), "RPS · successful requests"],
+    ["Response time for 95% of successes (p95)", number(o.p95), "ms · successful requests only"],
+    ["Requests waiting (queue)", number(o.queue, 0), `${o.inflight} requests in flight`],
   ];
   return (
     <section aria-label="Live metrics" className="metric-grid">

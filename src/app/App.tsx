@@ -4,6 +4,7 @@ import { initialSession, sessionReducer } from "./sessionReducer";
 import type { Command, Predictions } from "../worker/protocol";
 import { validateConfig, type Config } from "../simulation/config";
 import { stages } from "../lesson/stages";
+import { CapacityScheme } from "../components/SystemSchemes";
 import Topology from "../components/Topology";
 import Controls from "../components/Controls";
 import Metrics from "../components/Metrics";
@@ -142,32 +143,11 @@ export default function App() {
         </div>
       </nav>
       <main>
-        <header className="hero">
-          <div>
-            <div className="eyebrow hero-tag">
-              <span className="tiny-square" />
-              EXPERIMENT 001 <span>BACKEND SYSTEM DESIGN</span>
-            </div>
-            <h1>
-              Your app just
-              <br />
-              <em>went viral.</em>
-            </h1>
-            <p>
-              Ten times the traffic. The same infrastructure.
-              <br />
-              Change the inputs. Run the model. Compare the evidence.
-            </p>
-          </div>
-          <div className="hero-note">
-            <span>THE QUESTION</span>
-            <p>
-              Does 10× more traffic
-              <br />
-              mean 10× more throughput?
-            </p>
-            <small>Explore freely. Open charts or a guided lesson when you choose.</small>
-          </div>
+        <header className="learning-intro">
+          <div className="eyebrow">THE BACKEND LEARNING LAB</div>
+          <h1>Your app just went viral.</h1>
+          <p>Learn what happens behind the screen when more people ask your app for data.</p>
+          <ol className="learning-steps" aria-label="How to explore"><li><b>01</b> Understand the system</li><li><b>02</b> Change the inputs</li><li><b>03</b> Observe what changes</li></ol>
         </header>
         {v?.mode === "guided" ? <ol className="stage-track" aria-label="Guided lesson progress">
           {stages.map((s, i) => (
@@ -238,16 +218,47 @@ export default function App() {
           <>
             {v.status === "running" && v.executionStyle === "fast" ? <p role="status" className="notice">Calculating 60 simulated seconds… <button onClick={() => action("CANCEL")}>Cancel calculation</button></p> : null}
             <p className="sr-only" role="status">{v.status === "finished" ? "Experiment complete. Results ready." : v.status === "paused" ? "Simulation paused." : ""}</p>
-            <div className="workspace">
-              <div className="main-column">
+            <div className="learning-workspace">
                 <Topology
                   view={v}
+                  selected={state.selected}
                   onSelect={(selected) =>
                     dispatch({ type: "patch", patch: { selected } })
                   }
                   motion={state.motion}
                 />
+              {state.selected ? <Inspector view={v} selected={state.selected} onClose={() => dispatch({ type: "patch", patch: { selected: null } })} /> : <section id="component-explanation" className="card journey-overview" aria-label="Request journey">
+                <h3>From a tap to a list of posts</h3>
+                <p>Your app asks for posts → the API handles the request → it checks saved results if cache is on → the database serves reads that still need data → the API sends the response back.</p>
+                <p><strong>Try it:</strong> select a component above, then change one input below and run an experiment.</p>
+              </section>}
+              <div className="experiment-grid">
+                <Controls view={v} draft={state.draft} canRun={canRun} onEdit={edit} onAction={action} />
+                <section className="results-column" aria-labelledby="results-title">
+                  <div className="results-heading"><h2 id="results-title">03 <span>Read the results</span></h2><p>{state.draft ? "Inputs edited. These results and the diagram still use the applied settings." : "Results for the applied settings shown above."}</p></div>
                 <Metrics view={v} />
+                <CapacityScheme view={v} />
+                <section className="insight">
+                  <div className="eyebrow">
+                    <i
+                      className={`status-dot ${v.observation.bottleneck !== "None" ? "amber" : ""}`}
+                    />
+                    WHY THIS HAPPENED
+                  </div>
+                  <h2>
+                    {v.observation.bottleneck === "None"
+                      ? "The system has room for this traffic."
+                      : `${v.observation.bottleneck} is limiting completions.`}
+                  </h2>
+                  <p>A bottleneck is the part limiting how many requests can finish.</p>
+                  <p>{v.insight}</p>
+                  <p>Evidence: API processing {v.observation.cpuUtil.toFixed(0)}% busy · database {v.observation.dbUtil.toFixed(0)}% busy.</p>
+                  <small>
+                    Evidence: ({v.observation.windowStart.toFixed(1)},{" "}
+                    {v.observation.time.toFixed(1)}] virtual seconds
+                  </small>
+                </section>
+
                 {v.mode === "guided" ? <Suspense fallback={<p role="status">Loading guided lesson…</p>}><LessonPanel
                   view={v}
                   predictions={state.predictions}
@@ -285,52 +296,16 @@ export default function App() {
                 >
                   <Charts key={`${v.mode}-${v.stage}-${v.config.rps}-${v.config.seed}`} history={v.history ?? []} spike={v.config.spike} />
                 </Suspense></div> : null}
-              </div>
-              <aside>
-                <Controls
-                  view={v}
-                  draft={state.draft}
-                  canRun={canRun}
-                  onEdit={edit}
-                  onAction={action}
-                />
-                <section className="insight">
-                  <div className="eyebrow">
-                    <i
-                      className={`status-dot ${v.observation.bottleneck !== "None" ? "amber" : ""}`}
-                    />
-                    LIVE EXPLANATION
-                  </div>
-                  <h2>
-                    {v.observation.bottleneck === "None"
-                      ? "Room to breathe."
-                      : `${v.observation.bottleneck} is the constraint.`}
-                  </h2>
-                  <p>{v.insight}</p>
-                  <small>
-                    Evidence: ({v.observation.windowStart.toFixed(1)},{" "}
-                    {v.observation.time.toFixed(1)}] virtual seconds
-                  </small>
-                </section>
-                {state.selected ? (
-                  <Inspector
-                    view={v}
-                    selected={state.selected}
-                    onClose={() =>
-                      dispatch({ type: "patch", patch: { selected: null } })
-                    }
-                  />
-                ) : null}
-                <div className="model-note">
+                <details className="model-note"><summary>Educational simulation, not a benchmark</summary>
                   <span className="eyebrow">MODEL NOTES</span>
-                  <p>Educational simulation, not a benchmark</p>
                   <small>
                     {v.config.modelVersion} · seed {v.config.seed}
                     <br />
                     Fixed schedules · no real traffic
                   </small>
-                </div>
-              </aside>
+                </details>
+                </section>
+              </div>
             </div>
             <footer>
               <span>

@@ -21,7 +21,7 @@ export default function Controls({
     <section className="card controls">
       <div className="section-heading">
         <h2>
-          02 <span>Experiment controls</span>
+          02 <span>Change the inputs</span>
         </h2>
         <span className="eyebrow">{view.mode === "sandbox" ? "EXPLORE" : "GUIDED"}</span>
       </div>
@@ -61,7 +61,7 @@ export default function Controls({
           ))}
         </select>
         <small id="replicas-hint">
-          Copies of the application sharing the work. More copies can help
+          A replica is a copy of the API application sharing the work. More copies can help
           until the database becomes the limit.
         </small>
       </label>
@@ -126,6 +126,7 @@ export default function Controls({
           </small>
         </label>
       ) : null}
+      <details className="advanced-settings"><summary>Advanced: simulation seed</summary>
       <label>
         Simulation seed
         <input
@@ -142,6 +143,7 @@ export default function Controls({
           Recorded for replay. Fixed schedules do not vary with seed.
         </small>
       </label>
+      </details>
       {draft ? (
         <div className="pending-edits" role="status">
           <strong>Changes pending · results still use applied inputs</strong>

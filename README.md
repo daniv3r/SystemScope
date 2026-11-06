@@ -20,6 +20,13 @@ speed, or cache, then click **Run experiment** once: it applies your inputs and 
 complete result quickly in the browser worker. Compare Last run → Current run and read the
 explanation beside the numbers. Pending edits never relabel old results as new ones.
 
+The learning screen follows **Understand → Change → Observe**. Select Clients, API,
+Cache, or Database to read what it does, what you can change, and how it can affect
+results. Cache remains visible when off. Component details sit below the diagram;
+inputs precede results on small screens. Technical resource readings, simulation seed,
+and comparison evidence can be expanded when needed. The diagram and results always
+show applied settings, even while new inputs are pending.
+
 **Show charts** loads real retained simulation traces; closing charts removes their display
 and stops chart-history delivery. Charts are not loaded on a fresh visit. **Watch simulation**
 optionally plays the same model at 1x/4x with Pause and Step. Fast Run and Watch produce the

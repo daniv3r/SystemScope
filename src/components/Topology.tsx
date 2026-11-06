@@ -1,109 +1,30 @@
+import { RequestScheme } from "./SystemSchemes";
 import type { View } from "../worker/protocol";
-export default function Topology({
-  view,
-  onSelect,
-  motion,
-}: {
-  view: View;
-  onSelect: (s: string) => void;
-  motion: boolean;
+import { componentGuide, type ComponentId } from "./componentGuide";
+export default function Topology({ view, onSelect, selected, motion }: {
+  view: View; onSelect: (s: ComponentId) => void; selected: ComponentId | null; motion: boolean;
 }) {
   const o = view.observation;
-  return (
-    <section
-      className={`card topology ${motion ? "still" : ""}`}
-      aria-labelledby="topology-title"
-    >
-      <div className="section-heading">
-        <h2 id="topology-title" tabIndex={-1}>
-          01 <span>Topology</span>
-        </h2>
-        <span className="eyebrow">AGGREGATE REQUEST FLOW</span>
-      </div>
-      <p className="topology-hint">
-        Select a component to learn what it does, what limits it, and which
-        changes can help.
-      </p>
-      <div className="topology-map">
-        <svg
-          className="wires"
-          viewBox="0 0 800 200"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <defs>
-            <marker
-              id="arrow"
-              markerWidth="8"
-              markerHeight="8"
-              refX="6"
-              refY="3"
-              orient="auto"
-            >
-              <path d="M0 0L6 3L0 6" fill="none" stroke="currentColor" />
-            </marker>
-          </defs>
-          <path d="M170 100H320 M490 100H630" markerEnd="url(#arrow)" />
-          <path
-            className={view.status === "running" ? "flow-line" : ""}
-            d="M170 100H320 M490 100H630"
-          />
-        </svg>
-        <button id="topology-clients" className="node" onClick={() => onSelect("clients")}>
-          <span className="node-icon">↗</span>
-          <strong>Clients</strong>
-          <span>{o.target.toLocaleString()} arriving/s</span>
-          <small>Offered demand</small>
+  const readings: Record<ComponentId, string> = {
+    clients: `${o.target.toLocaleString()} arriving / second`,
+    api: `${view.config.replicas} ${view.config.replicas === 1 ? "copy" : "copies"} · ${o.cpuUtil.toFixed(0)}% CPU busy`,
+    cache: view.config.cache ? "On · 80% configured hits" : "Off · reads go to database",
+    db: `${view.config.db} · ${o.dbUtil.toFixed(0)}% busy`,
+  };
+  return <section className={`card topology ${motion ? "still" : ""}`} aria-labelledby="topology-title">
+    <div className="section-heading"><h2 id="topology-title" tabIndex={-1}>01 <span>Understand the system</span></h2><span className="eyebrow">APPLIED SETTINGS</span></div>
+    <p className="topology-hint">Follow a request for a list of posts. Select any component to learn how it works.</p>
+    <div className="request-flow">
+      {(["clients", "api", "cache", "db"] as const).map((id, i) => <div className="flow-step" key={id}>
+        {i > 0 && <p className="flow-connector">{id === "cache" ? (view.config.cache ? "Check saved result →" : "Cache disabled →") : id === "db" ? (view.config.cache ? "Miss: read data →" : "Read data →") : "Send request →"}</p>}
+        <button id={`topology-${id}`} aria-expanded={selected === id} aria-controls="component-explanation" className={`flow-node ${selected === id ? "selected" : ""} ${((id === "api" && o.bottleneck === "API") || (id === "db" && o.bottleneck === "Database")) ? "strained" : ""} ${id === "cache" && !view.config.cache ? "cache-off" : ""}`} onClick={() => onSelect(id)}>
+          <span className="flow-number">0{i + 1}</span><strong>{componentGuide[id].name}</strong><span>{componentGuide[id].short}</span><small>{readings[id]}</small>
+          {(id === "api" && o.bottleneck === "API") || (id === "db" && o.bottleneck === "Database") ? <b className="limit-label">Limiting completions</b> : null}
         </button>
-        <button
-          id="topology-api"
-          className={`node api ${o.bottleneck === "API" ? "strained" : ""}`}
-          onClick={() => onSelect("api")}
-        >
-          <span className="node-icon">▤</span>
-          <strong>
-            API replicas <b>×{view.config.replicas}</b>
-          </strong>
-          <span>
-            {o.cpuUtil.toFixed(0)}% CPU · {o.inflight} in flight
-          </span>
-          <small>
-            {o.bottleneck === "API"
-              ? "Capacity constraint"
-              : "Bounded workers & queues"}
-          </small>
-        </button>
-        <button
-          id="topology-db"
-          className={`node db ${o.bottleneck === "Database" ? "strained" : ""}`}
-          onClick={() => onSelect("db")}
-        >
-          <span className="node-icon">◉</span>
-          <strong>Database</strong>
-          <span>
-            {o.dbUtil.toFixed(0)}% busy · {o.dbBusy}/4 slots
-          </span>
-          <small>
-            {o.bottleneck === "Database"
-              ? "Capacity constraint"
-              : `${view.config.db} service`}
-          </small>
-        </button>
-        {view.config.cache ? (
-          <button id="topology-cache" className="cache-node" onClick={() => onSelect("cache")}>
-            ↳ Cache · 80% configured hits
-          </button>
-        ) : null}
-      </div>
-      <div className="topology-footer">
-        <span>
-          <i className={`status-dot ${o.queue ? "amber" : ""}`} />
-          {o.queue
-            ? `${o.queue} waiting · ${o.health}`
-            : "Healthy flow · no waiting"}
-        </span>
-        <span>Moving marks are aggregates, not individual requests.</span>
-      </div>
-    </section>
-  );
+      </div>)}
+    </div>
+    <RequestScheme view={view} />
+    <div className="return-path"><strong>{view.config.cache ? "Cache hit? Skip the database." : "Cache is off: reads visit the database."}</strong> The API sends the result back to the client.</div>
+    <div className="topology-footer"><span><i className={`status-dot ${o.queue ? "amber" : ""}`} />{o.queue ? `${o.queue} requests waiting · ${o.health}` : "No requests waiting"}</span><span>Diagram shows the model, not real network traffic.</span></div>
+  </section>;
 }

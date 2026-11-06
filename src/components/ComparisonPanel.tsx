@@ -22,6 +22,8 @@ export default function ComparisonPanel({ view }: { view: View }) {
   return (
     <div data-testid="comparison" className="comparison">
       <h4>{view.comparison.title}</h4>
+      <p>Last run → Current run. Compare completed requests, response time, and waiting below.</p>
+      <details className="comparison-evidence"><summary>Run settings and measurement evidence</summary>
       {view.reference ? (
         <p data-testid="reference-config">
           Reference: {view.reference.config.replicas} API · {view.reference.config.db} DB · cache{" "}
@@ -40,6 +42,7 @@ export default function ComparisonPanel({ view }: { view: View }) {
         ({view.observation.windowStart.toFixed(1)}, {view.observation.time.toFixed(1)}] s ·{" "}
         {view.observation.samples.toLocaleString()} successful samples · {view.config.modelVersion}
       </p>
+      </details>
       {view.comparison.rows.slice(0, 3).map(row => <ComparisonRow key={row.name} row={row} />)}
       <details>
         <summary>All comparison metrics</summary>

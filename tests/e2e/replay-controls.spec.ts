@@ -20,6 +20,7 @@ test("Explore pending edits, Watch pause/step, mode-aware reset, and inspectors"
   await expect(page.getByTestId("virtual-time")).toHaveText("60.00 s");
   await expect(page.getByTestId("run-status")).toHaveText("finished");
   await expect(page.getByTestId("reference-config")).toContainText("partial");
+  await page.getByText("Advanced: simulation seed", {exact:true}).click();
   await page.getByLabel("Simulation seed").fill("-1");
   await page.getByRole("button",{name:"Run experiment",exact:true}).click();
   await expect(page.getByRole("alert")).toContainText("INVALID_CONFIG");
