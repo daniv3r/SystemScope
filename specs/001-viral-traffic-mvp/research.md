@@ -72,13 +72,13 @@ capacity formulas cannot reproduce queue/resource/deadline behavior. Neither is 
 **Decision**: Use an indexed min-heap for scheduled events and bounded FIFO wait queues.
 Cancel pending completion/deadline entries eagerly; do not accumulate cancelled tombstones.
 One next-arrival event, one schedule-boundary event, and at most two scheduled events per
-admitted request fit within a conservative 4,000-event cap (2×1,856+2 < 4,000).
+admitted request fit within a conservative 4,000-event cap (2×384+2 < 4,000).
 Sample output at 100 ms; Step endpoints are 10 ms-aligned. Use 1,000 closed 10 ms statistics
 buckets for the exact trailing 10 s, plus the current accumulator. Integrate busy-slot time
 and queue area across exact event intervals, not from displayed chart samples. Preserve
 per-bucket peaks for final-window maxima. Keep cumulative run totals separately.
 
-Maintain an expiring completion ring (at most 101,856 samples) and a 10,001-bin latency
+Maintain an expiring completion ring (at most 100,384 samples) and a 10,001-bin latency
 histogram in 100-microsecond units, from zero through the 1,000 ms deadline. Select nearest-
 rank p50/p95 by cumulative count, never averaging percentiles or inventing empty samples.
 Every successful latency is exactly representable under R3. Counts for each outcome use
@@ -163,3 +163,23 @@ Source: [Playwright CI](https://playwright.dev/docs/ci).
 No blocking clarification remains. Optional slider/persistence are deferred within existing
 scope; no constitution exceptions are requested. Proceed to the Phase 1 contracts and data
 model. Source compatibility checks must be repeated when locking actual dependencies.
+
+## R8. Explore-first amendment (2026-11-06)
+
+**Decision**: Default to editable Explore inputs plus real completed results. Run computes
+60 virtual seconds quickly; Watch optionally paces the same core. Charts and guided lesson
+are independent opt-in presentation chunks. Retain bounded model chart sampling but omit
+history transport until subscribed; opening delivers genuine retained samples. No dependency,
+model constant, or underlying resource behavior changes. Protocol v2 adds execution intent
+and chart subscription, retaining cooperative cancellation/identity/credit safeguards.
+
+**Rationale**: The user selected both optional views and fast results in two clarification
+answers. Source inspection found the charts already use actual model observations, while
+initial guided mode locks controls and the chart component mounts automatically. Reusing the
+engine preserves truthful evidence and keeps one engineer able to understand the system.
+
+**Alternatives considered**: Guided-first entry and always-visible charts contradict the
+clarified journey. Mandatory paced runs slow comparisons. A separate approximate fast engine
+would compromise determinism. Disabling chart capture would lose earlier real observations;
+retaining at most 600 samples while avoiding hidden rendering/serialization is sufficient.
+No new technology research is required; implementation performance must be measured.

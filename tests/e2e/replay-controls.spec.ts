@@ -1,0 +1,48 @@
+import { expect, test } from "@playwright/test";
+test("Explore pending edits, Watch pause/step, mode-aware reset, and inspectors", async ({page}) => {
+  await page.goto("./");
+  await expect(page.getByTestId("virtual-time")).toHaveText("60.00 s");
+  await page.getByLabel("Offered traffic, requests per second").selectOption("1000");
+  await expect(page.getByText(/Changes pending/)).toBeVisible();
+  await page.getByRole("button",{name:"Watch simulation",exact:true}).click();
+  await expect(page.getByTestId("run-status")).toHaveText("running");
+  await page.getByRole("button",{name:"Pause",exact:true}).click();
+  await expect(page.getByTestId("run-status")).toHaveText("paused");
+  const time = parseFloat(await page.getByTestId("virtual-time").innerText());
+  await page.waitForTimeout(150);
+  await expect(page.getByTestId("virtual-time")).toHaveText(`${time.toFixed(2)} s`);
+  await page.getByRole("button",{name:"Step 10 ms"}).click();
+  await expect(page.getByTestId("virtual-time")).toHaveText(`${(time + 0.01).toFixed(2)} s`);
+  await page.getByRole("button",{name:"API replicas",exact:false}).first().click();
+  await expect(page.getByTestId("inspector")).toContainText("CPU slots");
+  await page.getByRole("button",{name:"Resume playback"}).click();
+  await page.getByRole("button",{name:"Reset baseline"}).click();
+  await expect(page.getByTestId("virtual-time")).toHaveText("60.00 s");
+  await expect(page.getByTestId("run-status")).toHaveText("finished");
+  await expect(page.getByTestId("reference-config")).toContainText("partial");
+  await page.getByLabel("Simulation seed").fill("-1");
+  await page.getByRole("button",{name:"Run experiment",exact:true}).click();
+  await expect(page.getByRole("alert")).toContainText("INVALID_CONFIG");
+  await expect(page.getByTestId("virtual-time")).toHaveText("60.00 s");
+  await page.getByRole("button",{name:"Discard edits"}).click();
+});
+
+test("fast Run equals Watch and Replay; chart selection and speed do not change results", async ({page}) => {
+  await page.goto("./");
+  await page.getByLabel("Offered traffic, requests per second").selectOption("1000");
+  await page.getByRole("button",{name:"Run experiment",exact:true}).click();
+  await expect(page.getByTestId("run-status")).toHaveText("finished");
+  const fast = await page.getByLabel("Live metrics").innerText();
+  await page.getByRole("button",{name:"Watch simulation"}).click();
+  await page.getByLabel("Playback speed").selectOption("4");
+  await page.getByRole("button",{name:"Show charts",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"Traffic in, work out"})).toBeVisible();
+  await page.getByRole("button",{name:"Hide charts",exact:true}).click();
+  await expect(page.getByTestId("run-status")).toHaveText("finished",{timeout:35000});
+  await expect(page.getByLabel("Live metrics")).toHaveText(fast,{useInnerText:true});
+  await page.getByRole("button",{name:"Run experiment",exact:true}).click();
+  await expect(page.getByTestId("run-status")).toHaveText("finished");
+  await page.getByRole("button",{name:"Replay same inputs"}).click();
+  await expect(page.getByTestId("run-status")).toHaveText("finished");
+  await expect(page.getByLabel("Live metrics")).toHaveText(fast,{useInnerText:true});
+});

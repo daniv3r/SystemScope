@@ -4,11 +4,19 @@
 
 **Created**: 2026-11-05
 
-**Status**: Draft — requirements reviewed; ready for planning.
+**Status**: Implemented and verified locally 2026-11-06; hosted release gates pending.
 
-**Input**: A single-screen Predict → Run → Explain experience for a mobile/frontend engineer
-learning what changes when incoming traffic increases tenfold. Governed by constitution v2.0.0.
+**Input**: A single-screen input → simulation result experience for a mobile/frontend engineer
+learning what changes when incoming traffic increases tenfold, with optional charts and an
+optional guided Predict → Run → Explain lesson. Governed by constitution v2.0.0.
 This revises the existing MVP specification rather than introducing another feature.
+
+## Clarifications
+
+### Session 2026-11-06
+
+- Q: Should charts also open only when selected, or should only the guided lesson be optional? → A: Inputs and headline results by default; charts and lesson both optional, enabled separately by explicit selection.
+- Q: After choosing inputs, should Run show a completed result quickly or play the simulation over time? → A: Compute the full experiment quickly; playback is optional.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -17,23 +25,25 @@ capacity, queues, and system design. Explanations must work without prior queuei
 P0 stories deliver the core experiment; P1 stories make it accessible and reliably usable.
 All stories are required for MVP release. Independent tests use the named scenario fixtures.
 
-### User Story 1 - Predict and observe a traffic spike (Priority: P0)
+### User Story 1 - Explore inputs and observe results (Priority: P0)
 
-As a learner, I want to compare arriving requests with successful completions, predict the
-result of a tenfold increase, and inspect the resulting evidence on one screen.
+As a learner, I want to change inputs and compare arriving requests with successful
+completions on one screen, without completing predictions or lesson stages first.
 
 **Why this priority**: This teaches that demand and successful throughput are different.
 
-**Independent Test**: Open a fresh session and execute baseline and spike stages without
-requiring scaling, caching, or saved progress.
+**Independent Test**: Open a fresh session, change offered traffic from 100 to 1,000 RPS,
+and compare results without opening charts or starting the guided lesson.
 
 **Acceptance Scenarios**:
 
 1. **Given** a fresh visit, **When** initialization completes, **Then** the single simulator
    screen shows a working 100 RPS baseline, separate offered/admitted/completed labels,
-   topology, controls, metrics, lesson prompt, and an Assumptions entry point; no landing
-   page or account is required. Initial baseline values come from actual simulation.
-2. **Given** the baseline, **When** I reach the spike prediction, **Then** I can choose
+   topology, editable controls, headline results, a short evidence-backed explanation, and
+   an Assumptions entry point; no landing page or account is required. Initial values come
+   from actual simulation. Charts and guided lesson are closed and independently selectable.
+   Predictions, stage navigation, and lesson control locks appear only after selecting the lesson.
+2. **Given** I explicitly start the guided lesson, **When** I reach the spike prediction, **Then** I can choose
    increase / approximately same / decrease separately for completed throughput, completed
    p95 latency, and mean queued requests, with the reference window identified.
 3. **Given** an unanswered prediction, **When** I try Run or Step for that lesson stage,
@@ -44,6 +54,16 @@ requiring scaling, caching, or saved progress.
 5. **Given** a finished stage, **When** I read the explanation, **Then** each prediction is
    compared with observed before/after values, sample count/window, and a causal explanation;
    an unavailable measure is not scored as a wrong answer.
+6. **Given** Explore inputs have changed, **When** I select Run, **Then** one action validates
+   and applies the complete draft, archives the outgoing summary, computes a fresh 60-second
+   constant-traffic run quickly, and shows results plus a comparison; no separate Apply action,
+   prediction, chart selection, or playback wait is required.
+7. **Given** charts and lesson are closed, **When** I select Show Charts, **Then** actual retained
+   observations appear without changing results or time; closing/reopening restores the same
+   trace. Neither selection starts the lesson. Constant traffic has no fictitious spike marker.
+8. **Given** the same applied inputs and seed, **When** I compare fast Run with optional Watch
+   playback to the endpoint, **Then** authoritative final observations and summaries match
+   exactly, excluding transport identifiers and execution timing.
 
 ### User Story 2 - Find and relieve the next bottleneck (Priority: P0)
 
@@ -77,7 +97,7 @@ meaning or receiving outdated results from a cancelled run.
 
 **Why this priority**: Trustworthy evidence requires repeatable inputs and clear state.
 
-**Independent Test**: Run a sandbox fixture, pause/step it, replay it, and reset during load.
+**Independent Test**: Run an Explore fixture, pause/step it, replay it, and reset during load.
 
 **Acceptance Scenarios**:
 
@@ -90,19 +110,23 @@ meaning or receiving outdated results from a cancelled run.
 3. **Given** a recorded configuration and seed, **When** I replay it, including with different
    pause/step or 1x/4x playback choices, **Then** metrics at matching virtual times and final
    results are identical for the same model version.
-4. **Given** a running experiment, **When** I change a model control, **Then** it pauses and
-   stages the edit; Apply & Restart saves the old partial summary and starts an empty run
-   with all pending edits atomically, while Discard preserves the unchanged old run.
+4. **Given** a running experiment, **When** I change a model control, **Then** it pauses
+   playback or cancels fast computation at an acknowledged boundary, and stages the edit
+   without changing existing result labels. In Explore, Run applies all
+   valid edits and computes a new result in one action; Watch applies them and starts a new
+   playback. Discard preserves the unchanged old run. Invalid drafts do not replace results.
 5. **Given** an overloaded run, **When** I select Reset, **Then** it cancels current work,
-   restores the low-traffic baseline with the currently applied seed, clears current
-   predictions/charts, preserves Last run as partial, and ignores all late old-run results.
+   restores the low-traffic baseline in the current mode with the currently applied seed,
+   clears current predictions/history, preserves the outgoing summary with its actual
+   complete/partial status, and ignores all late old-run results. Explore computes a complete
+   60-second baseline; the selected lesson resets to stage 1 at 5 s paused.
 6. **Given** two summaries with different or incomplete observation durations, **When** I
    compare them, **Then** their durations/configurations are explicit; unavailable values
    remain N/A, and percentage changes from zero or missing values are not fabricated.
-7. **Given** a running guided stage with pending edits, **When** I enter sandbox, **Then**
+7. **Given** a running guided stage with pending edits, **When** I return to Explore, **Then**
    the mode-switch rules create a new paused 60-second run at t=0 using applied settings,
    discard drafts with notice, preserve the old partial summary, and reject late old results.
-8. **Given** a sandbox run, **When** I return to guided mode, **Then** a new paused stage-1
+8. **Given** an Explore run, **When** I select Start Guided Lesson, **Then** a new paused stage-1
    baseline at t=5 s uses the applied seed and default resources; old predictions/references
    are cleared and later comparisons use newly computed lesson evidence.
 
@@ -130,20 +154,35 @@ with reduced motion, then open Assumptions and inspect chart values.
 
 ### Lesson Narrative and User Journey
 
-All stages use the same screen, simulation semantics, model version, and chosen seed.
-The learner sees the system first, predicts, runs, and reads an explanation beside evidence.
-A sandbox toggle unlocks the same controls without requiring predictions and uses the same
-engine. Entering sandbox cancels the old run and creates a new run identity, empty state at
+The default view is Explore: inputs, headline results, topology, and a short explanation.
+On first visit compute a complete 60-second constant-100-RPS baseline quickly in the worker;
+show an explicit calculating state until genuine results are ready. Default inputs retain
+seed 42, one replica, normal DB, and cache off. The completed result uses (50 s,60 s].
+Run validates pending inputs and computes a fresh full run without playback pacing; no
+second Apply action. Re-running unchanged inputs is deterministic. Watch is optional and
+starts a fresh run of the selected inputs from zero at 1x/4x, with Pause/Step controls.
+Replay follows the currently selected execution style; switching style never continues an
+old queue or changes its endpoint. Fast computation remains cancellable and shows busy
+status; no model events are skipped and no approximate engine is used. Preserve outgoing
+complete/partial summaries. Editing pauses playback or cancels an in-progress fast run at
+an acknowledged boundary before staging; comparisons always identify their applied inputs.
+Controls are available immediately; no prediction or stage completion is required. Show Charts
+and Start Guided Lesson are separate opt-in actions. Charts use actual simulation observations,
+never illustrative or fabricated data. Closing charts leaves results available.
+
+All optional lesson stages use the same screen, simulation semantics, model version, and chosen
+seed. Only the selected lesson requires Predict → Run → Explain and stage-specific control locks.
+Explore (formerly sandbox) uses the same engine. Returning to Explore from the lesson cancels the old run and creates a new run identity, empty state at
 t=0, paused, with a 60-second endpoint. It copies the applied seed, API replica count, DB
 preset, cache setting/hit assumption, and current offered target at the worker's acknowledged
-cancellation boundary; that target becomes constant sandbox traffic. It never modifies the
+cancellation boundary; that target becomes constant Explore traffic. It never modifies the
 old run's immutable endpoint or continues its queue. Archive the old run as Last run with
 complete/partial status, clear lesson predictions/reference summaries and current charts,
 and discard pending edits with a visible notice. Preserve playback speed and motion preference.
-Metrics are N/A/zero as defined at t=0 until Run or Step produces observations. Mode changes
+On this explicit mode switch, metrics are N/A/zero as defined at t=0 until Run, Watch, or Step produces observations. Mode changes
 are disabled until initial baseline initialization has settled.
 
-Returning to guided mode similarly replaces the sandbox run, archives its summary, discards
+Returning to guided mode similarly replaces the Explore run, archives its summary, discards
 pending edits with a notice, clears predictions/references/charts, restores default baseline
 resources with the applied seed, computes stage 1 to t=5 s, and pauses. Preserve speed and
 motion preference and state that the lesson restarts. Old-run results cannot affect either
@@ -152,7 +191,7 @@ replacement. Predictions and reference evidence are recomputed as the lesson pro
 Each official stage is a 25-second virtual experiment from empty state. Stage 1 is 100 RPS
 throughout. Stages 2–5 use 100 RPS through t=5 s and 1,000 RPS thereafter. Each comparison
 uses the final 10-second window, (15 s, 25 s], and a fresh controlled rerun rather than live
-migration of queued work. The initial view is stage 1 already advanced to t=5 s and paused;
+migration of queued work. On explicitly starting the lesson, stage 1 is already advanced to t=5 s and paused;
 Run continues it to 25 s. Its initialization is reproducible and has no synthetic metric data.
 
 | Stage | Narrative and configuration | Reference and explanation |
@@ -166,7 +205,7 @@ Run continues it to 25 s. Its initialization is reproducible and has no syntheti
 After each run show prediction versus observation and enable Next Stage. Replay Stage uses
 identical inputs from t=0. Stage 5 can be replayed with the alternative remedy, retaining stage
 4 as the lesson reference. Lesson resource controls are fixed to each stage except remedy
-choice; seed can be set before starting/restarting the lesson. Sandbox permits all main knobs.
+choice; seed can be set before starting/restarting the lesson. Explore permits all main knobs.
 Hints cite current evidence, e.g. “The DB is busy 99% of this window and 84 requests are
 waiting for it,” only when those numbers are actually observed. A shop-counter analogy may
 explain waiting but must map explicitly to the modeled resource and its limits.
@@ -175,18 +214,21 @@ explain waiting but must map explicitly to the modeled resource and its limits.
 
 | Case | Required outcome |
 | --- | --- |
+| Charts closed/opened/reopened | Headline results remain available; no run reset or metric changes; retained model observations appear on selection, never generated illustrative traces |
+| Fresh visit / optional lesson | Explore is immediately usable; no prediction gating or lesson control locks until explicitly starting the lesson |
 | No successful completions | p50/p95 N/A, sample count zero; failures visible separately |
 | High overload / queue full | Queue and estimated memory remain bounded; new arrivals may be rejected; admitted work may time out |
 | Pause or background tab throttling | No wall-clock catch-up that skips events; pause acknowledgment freezes state, playback lag is labeled |
 | Reset/cancel mid-run | Finite response time, old run invalidated, late results ignored, fresh baseline reproducible |
-| Switch guided/sandbox mode | New run identity and immutable mode-specific endpoint; archive old summary, discard drafts with notice, clear predictions/references, never continue the old queue |
-| Change seed/config while running | Pending-change restart rule; no window mixes configurations; invalid values preserve current state |
+| Switch guided/Explore mode | New run identity and immutable mode-specific endpoint; archive old summary, discard drafts with notice, clear predictions/references, never continue the old queue |
+| Change seed/config while running | Pause playback or cancel fast computation at a boundary, stage edits; Explore Run applies and computes in one action; no window mixes configurations; invalid values preserve current state |
 | Change speed | Playback only; no changed ordering, skipped events, or results at matching virtual times |
 | DB saturated | More replicas cannot increase shared DB capacity; DB waits and CPU/worker distinctions visible |
 | Zero cache hits | Every completed lookup misses and incurs overhead; no promised improvement |
 | Perfect cache hits | DB bypassed for all cacheable reads; API/lookup CPU cost still limits completions |
 | Cache off / no lookups | Realized hit fraction N/A, configured assumption remains visible |
 | Timeout at service completion | Success exactly at deadline wins; otherwise only one terminal outcome and one resource release |
+| Fast Run / Watch | Same event model and final results; fast Run yields for cancellation and shows calculating status, Watch alone waits for paced playback |
 | End at 60 s | Stop arrivals and progression, report remaining in-flight work; do not silently drain past limit or mark it successful |
 | Empty or partial comparison | Actual window shown; no invented samples or division by zero |
 | Worker failure | Stop showing advancing progress, show readable error and restart; never substitute UI-calculated results |
@@ -198,25 +240,33 @@ explain waiting but must map explicitly to the modeled resource and its limits.
 ### Functional Requirements
 
 - **FR-001**: Provide the single-screen journey with clearly related Topology, Controls,
-  Metrics, lesson/explanation, and always-accessible Assumptions areas. No separate landing.
+  Metrics, explanation, and always-accessible Assumptions areas. No separate landing. Default
+  to Explore with editable inputs and headline results; charts and the guided lesson are
+  independently closed until selected. Starting the lesson is never required to run Explore.
 - **FR-002**: Show Clients → API replicas → Database with an optional cache path. Flow is
   aggregated, never one UI object per request; explain that moving marks are illustrative
   aggregates. Every component can be selected and inspected.
 - **FR-003**: Expose traffic presets 100/500/1,000/5,000/10,000 RPS, 1–8 integer replicas,
   slow/normal/fast DB, cache on/off with its specified hit assumption, seed, Run, Pause,
-  Step, Reset, Replay, and selected-node inspection. Retain playback 1x/4x. A slider is
+  Step, Reset, Replay, and selected-node inspection. Explore Run computes a full result;
+  optional Watch exposes playback 1x/4x, Pause, and Step. Guided Run retains paced playback. A slider is
   optional, must remain within 100–10,000 integer RPS, and cannot replace accessible presets.
-- **FR-004**: Follow the lesson, prediction, pending-edit, and mode-switch rules above. Approximately same
+- **FR-004**: Follow the Explore execution, optional lesson, prediction, pending-edit, and mode-switch rules above. Approximately same
   means within ±5% of the reference; zero to zero is same, zero to positive is increase.
   Compare successful throughput, completed p95, and time-weighted mean queued requests over
   matching final windows. N/A is unscored, with an explanation of missing successful samples.
 - **FR-005**: Distinguish offered, admitted, and successful completed RPS; queued and in-flight
   work; latency; timeouts; rejections; and other errors using the definitions below. Display
   virtual time, units, observation window, configuration/seed, and successful sample count.
-- **FR-006**: Provide aligned time series for offered/admitted/completed RPS, p50/p95 latency,
+- **FR-006**: Only after Show Charts is selected, display aligned time series for offered/admitted/completed RPS, p50/p95 latency,
   pending queue, timeout/rejection counts, and estimated working-memory occupancy. Label
   counts by interval versus run total; other-error count remains separately available.
-  Provide text values and min/max summaries, shared virtual-time axis, and spike marker.
+  Provide text values and min/max summaries and a shared virtual-time axis. Annotate a
+  spike only when present in the actual offered schedule. Opening charts shows the current
+  run's retained simulated history, including samples before opening; no synthetic data.
+  Closing/reopening charts must not reset the run or change results, comparisons, or virtual
+  time. Charts are not loaded/rendered while unselected; bounded model history may remain
+  available. The lesson must not open charts automatically or vice versa.
 - **FR-007**: Inspectors show instantaneous busy/total CPU slots, occupied/total simulated
   workers, DB connections/service slots, waiting counts, and assumptions. Show instantaneous
   utilization as a fraction and percentage, separate from time-averaged utilization.
@@ -234,7 +284,8 @@ explain waiting but must map explicitly to the modeled resource and its limits.
   Partial summaries are labeled. Keep one previous run and up to five lesson summaries.
 - **FR-010**: Run the coherent bounded resource model in the assumptions ledger. Simulation
   results are authoritative; presentation cannot invent metrics. Same model version, inputs,
-  schedule, and seed reproduce results across replay, pause/step, and playback speeds.
+  schedule, and seed reproduce results across fast Run, replay, pause/step, chart selection,
+  and playback speeds. Wall-clock execution style is not a model input.
 - **FR-011**: Run no longer than 60 virtual seconds; bound resource work, queues, history,
   logs, snapshots, and visual updates. Cancellation/reset must acknowledge within 250 ms
   on the reference environment in SC-006, without waiting for a full run. Reject stale
@@ -283,6 +334,8 @@ boundaries. Percentages never divide completion-window outcomes by unrelated arr
 
 | Term | Meaning / units |
 | --- | --- |
+| Explore | Default input → result view; the existing sandbox mode, without mandatory predictions |
+| Run / Watch | Compute a complete result quickly / play the same simulated events at 1x or 4x; neither measures real service performance |
 | RPS | Requests per simulated second, not concurrent users |
 | Offered target / observed offered RPS | Configured arrival rate now / actual arrivals in window divided by window seconds; show both when window crosses a spike |
 | Admission | Acceptance into worker or ingress queue; admitted RPS = admissions in window / seconds |
@@ -343,7 +396,7 @@ remains explicitly in flight; it is neither a success nor an invented failure.
 
 ### Measurable Outcomes
 
-- **SC-001**: A reviewer can complete the five-stage lesson in under 5 minutes at 1x, including
+- **SC-001**: After explicitly selecting the lesson, a reviewer can complete the five-stage lesson in under 5 minutes at 1x, including
   predictions and explanations, without an account, backend setup, or navigation away from
   the simulator. A fresh clone starts by documented install/start steps after prerequisites.
 - **SC-002**: Final-window baseline successful throughput is 95–105 RPS with zero failures.
@@ -355,7 +408,7 @@ remains explicitly in flight; it is neither a success nor an invented failure.
 - **SC-004**: Each independent stage 5 remedy completes at least 850 RPS and reduces combined
   timeout/rejection counts by at least 50% versus stage 4 in matching final windows.
 - **SC-005**: Every lesson fixture reproduces identical model state/observations at matching
-  virtual times under replay, pause/step, 1x/4x, and snapshot continuation.
+  virtual times under fast execution, replay, pause/step, 1x/4x, chart visibility changes, and snapshot continuation.
 - **SC-006**: At 10,000 RPS, eight replicas, and 60 virtual seconds, no declared bound is
   exceeded. On a documented reference laptop with at least four logical cores and 8 GiB RAM,
   pause/reset/cancel acknowledgment occurs within 250 ms, controls remain operable, and
@@ -373,11 +426,31 @@ remains explicitly in flight; it is neither a success nor an invented failure.
   observed values; a reviewer can trace every numerical claim to the model or recorded
   observation, including the distinction between arriving and successfully completed work.
 
+- **SC-011**: A fresh visit exposes editable Explore inputs and actual baseline results with
+  charts and lesson closed. A reviewer compares 100 versus 1,000 RPS with one Run per change,
+  without predictions or Apply. The 60-second baseline and 1,000-RPS one-replica runs each
+  settle within 5 wall-clock seconds on the SC-006 reference environment, measured from
+  worker execution acceptance (excluding page download). At supported maximum load, record
+  actual completion time and retain the 250 ms cancellation gate; do not substitute outputs.
+- **SC-012**: Automated tests verify no chart/lesson presentation chunks or mounted controls
+  before selection, independent selection, no chart history transport while closed, actual
+  retained series after opening, unchanged results after close/reopen, and fast/Watch equality.
+
 ## Assumptions
+
+### Approved Model Correction (2026-11-05)
+
+The user approved 16 ingress positions per API replica, replacing 200 before the first
+release. Model version is now `viral-v1.1`. With 200 positions and a 1-second deadline,
+DB-bound work repeatedly expired during service: four/eight replicas completed only about
+39/46 RPS in the first engine fixtures. Isolated 16-position experiments produced
+333.2/400/400 RPS for one/four/eight replicas, preserving the intended learning outcomes.
+The deadline and numerical acceptance thresholds are unchanged. Maximum admitted work is
+384 requests and estimated buffer occupancy is 18 MiB. See validation.md for executed tests.
 
 ### Assumptions Ledger
 
-These are educational defaults for model version 1, not production measurements. They retain
+These are educational defaults for model version 1.1, not production measurements. They retain
 the established scenario's coherent resource model. The ledger is visible in Assumptions;
 no unsupported physical realism or statistical confidence is implied. Changing semantics
 requires a model-version update and refreshed expectations, not altered observations.
@@ -385,9 +458,9 @@ requires a model-version update and refreshed expectations, not altered observat
 | ID | Assumption / default | Meaning, uncertainty, and verification |
 | --- | --- | --- |
 | A-01 | Fixed-rate arrivals, presets 100–10,000 requests/s | Even spacing, first arrival at 1/RPS s, none at zero; no real burst variability. At schedule change start a new interval after boundary. D1 verifies offered counts |
-| A-02 | Seed 42; editable integer 0–4,294,967,295 | Same inputs/seed reproduce outputs; v1 fixed arrival/service/cache schedules use no randomness, so different seeds need not change results. Explain this beside seed control |
+| A-02 | Seed 42; editable integer 0–4,294,967,295 | Same inputs/seed reproduce outputs; v1.1 fixed arrival/service/cache schedules use no randomness, so different seeds need not change results. Explain this beside seed control |
 | A-03 | One API replica initially; supported 1–8 | Identical replicas, instantaneous least-outstanding routing among replicas able to admit, tie by replica number; no network/load-balancer model |
-| A-04 | Per replica: 32 simulated workers, 2 CPU slots, 200 ingress positions | A worker holds a request through terminal outcome; CPU service and DB waits are distinct. No actual OS/thread measurement |
+| A-04 | Per replica: 32 simulated workers, 2 CPU slots, 16 ingress positions | A worker holds a request through terminal outcome; CPU service and DB waits are distinct. No actual OS/thread measurement |
 | A-05 | API CPU: 5 ms pre-DB, 1 ms post-DB per request | Fixed times, no hardware calibration. Post-CPU also required for cache hits |
 | A-06 | Eight DB connections per replica; four shared DB service slots | Connection retained while waiting for/using DB, then released; API scaling does not change global DB slots |
 | A-07 | DB slow/normal/fast = 20/10/4 ms service per visit | Ideal upper bounds 200/400/1,000 DB visits/s with four slots, before other limits; D2 verifies plateau |
@@ -395,7 +468,7 @@ requires a model-version update and refreshed expectations, not altered observat
 | A-09 | End-to-end deadline 1,000 ms after arrival | Queue and service all count; timeout immediately cancels simulated work and releases resources. Real cancellation may be slower or incomplete |
 | A-10 | Memory weights: 16 KiB ingress; 64 KiB worker-held | Per-request buffer/accounting estimate, replaces weight on promotion; excludes real browser/app/GC memory |
 | A-11 | Step 10 virtual ms; playback 1x/4x; run limit 60 s | Exact intervening events preserved; no dependence on rendering or real-time pacing |
-| A-12 | Initial view/reset = baseline advanced to 5 s and paused | Uses actual model execution; Reset restores baseline resources and currently applied seed. Replay preserves current experiment configuration from zero |
+| A-12 | Explore initial/reset = completed 60 s baseline; optional lesson initial/reset = baseline at 5 s paused | All values computed by the same model. Reset preserves current mode and applied seed; Replay uses current inputs from zero and selected fast/playback style |
 | A-13 | Fixed trailing 10 s live window; guided comparison final 10 s | Avoids unneeded window controls; rates use actual duration at startup. At t=0 averages N/A, counts zero |
 | A-14 | No random failures or retries | Timeouts/rejections modeled separately; other errors zero and explicitly unmodeled. No invented error probability |
 | A-15 | Preferences/progress storage is optional | Default release may remain session-only. If saved locally, failures degrade safely and resuming a stage recomputes reference runs before scoring, never invents evidence |
@@ -425,14 +498,14 @@ This explains why caching can hurt a CPU-limited or zero-hit workload instead of
 
 ### Finite Budgets and Run State
 
-At eight replicas there are at most 1,856 admitted requests: 8×(200+32). The maximum modeled
-working-memory occupancy is 8×(200×16+32×64) KiB = 41 MiB. Queued work is a subset of admitted
+At eight replicas there are at most 384 admitted requests: 8×(16+32). The maximum modeled
+working-memory occupancy is 8×(16×16+32×64) KiB = 18 MiB. Queued work is a subset of admitted
 work; no infinite queue is implied. At 10,000 RPS, a run admits or rejects at most 600,000
 arrivals in 60 s, with at most 100 arrivals per 10 ms step. Each admitted request has the
 finite lifecycle above and no retry loop. Deadlines include all phases and holds.
 
-Retain at most 101,856 successful-latency samples in the trailing 10 s: at most 100,000 new
-arrivals plus 1,856 previously in-flight requests. Retain at most 600 time-series points per
+Retain at most 100,384 successful-latency samples in the trailing 10 s: at most 100,000 new
+arrivals plus 384 previously in-flight requests. Retain at most 600 time-series points per
 series at 100 ms intervals, one previous summary, five guided summaries, and one continuation
 snapshot. Raw diagnostic event logging is off by default; if enabled, retain at most the
 latest 1,000 entries and label truncation. At most 50 moving marks per topology link; no
@@ -445,10 +518,12 @@ must obey the same bounds. Unexpected internal limit breaches pause with an expl
 supported configurations must fit without such errors.
 
 Pause freezes after acknowledgment; pending edits retain results under their applied config.
-Apply & Restart saves the outgoing summary and starts at t=0, paused; Replay does the same
-without configuration changes. Reset cancels and restores A-12 with the applied seed, clears
-pending edits/predictions and current histories, restarts lesson at stage 1, and retains Last
-run with complete/partial label. Motion preference is preserved. A finished run cannot
+Explore Run saves the outgoing summary, atomically applies validated drafts, and computes
+a fresh run from t=0 to 60 s; Watch instead starts fresh paced playback. Replay uses the
+current config and selected execution style. Guided pending edits retain Apply & Restart
+from zero paused where allowed. Reset cancels and restores mode-specific A-12 with the
+applied seed, clears pending edits/predictions and current histories, and retains Last run
+with complete/partial label. Only a selected lesson resets to stage 1. Motion preference is preserved. A finished run cannot
 advance beyond its endpoint; it can only replay or reset. At reset, discarded new seed edits
 do not silently change the applied seed. Browser reload begins a fresh baseline, not a run
 continuation. A crash may leave Last run unavailable; label it instead of inventing a summary.

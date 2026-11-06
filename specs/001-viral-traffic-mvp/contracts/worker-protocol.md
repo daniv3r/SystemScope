@@ -1,6 +1,6 @@
 # Worker Protocol Contract
 
-**Protocol version**: 1 | **Model version**: viral-v1
+**Protocol version**: 2 (Explore execution and optional charts; reject version-1 peers) | **Model version**: viral-v1.1
 
 This is a typed in-browser message interface, not an HTTP API. Implement discriminated
 TypeScript unions shared by the controller and worker; validate all incoming shapes at
@@ -29,25 +29,31 @@ No wall-clock value participates in model inputs or deterministic comparison.
 
 | Type | Payload | Preconditions and result |
 | --- | --- | --- |
-| INITIALIZE | New runId, baseline seed | Once per new worker; compute baseline to 5 s in cooperative steps; ACK with paused state |
-| RUN | Predictions when guided stage 2–5 | ready/paused only; validate required choices; ACK then run to endpoint |
+| INITIALIZE | New runId, baseline seed | Once per new worker; Explore baseline to 60 s in cancellable fast batches; accepted ACK then FINISHED baseline; charts off |
+| RUN | executionStyle fast/playback; predictions when guided stage 2–5 | ready/paused only; guided requires playback and choices; ACK then run to endpoint without changing model |
 | PAUSE | None | Stop future steps; ACK paused state at current boundary; paused is idempotent |
 | STEP | Predictions when guided stage 2–5, unless already accepted | ready/paused, predictions if required; process exactly 100 quanta and all intervening events; ACK paused or FINISHED at endpoint |
+| SET_CHARTS | enabled boolean | Shell subscription only; default false; ACK unchanged model state; enabling supplies retained current-run history, disabling omits history from subsequent views |
 | SET_SPEED | 1 or 4 | Pacing only; ACK same model state, no implicit reset |
-| REPLACE | New runId, reason, replacement config/stage or reset/replay/enter-sandbox/return-guided intent | Atomic cancel/archive/create; old run becomes invalid immediately in UI; publish ACK addressed to new run with previous summary and replacement paused state |
+| REPLACE | New runId, reason, replacement config/stage or reset/replay/enter-sandbox/return-guided intent; execution intent paused/fast/playback | Atomic cancel/archive/create; old run becomes invalid immediately in UI; publish ACK addressed to new run with previous summary and replacement ready state; fast/playback then execute and deliver FINISHED at endpoint |
 | ADVANCE_STAGE | New runId, next stage, remedy if stage 5 | Prior lesson explanation available; preserve required references; otherwise reject |
 | COMPARE | Current/reference summary identities | Return domain-calculated deltas/directions/evidence; unavailable references return explicit error |
 | CANCEL | None | Stop scheduling, capture partial summary at boundary, preserve in-flight; ACK cancelled; restart requires replacement |
 | PROGRESS_APPLIED | Applied observationSeq | Return progress credit only for the exact outstanding current-run sequence; no model mutation |
 
-Initial/reset baseline construction is cancellable; no intermediate initializer value may
+INITIALIZE uses accepted/settled ACK phases followed by FINISHED; neither the accepted
+ACK nor a ready intermediate state is presented as the final baseline. Guided entry/reset
+settles at 5 s paused without FINISHED until its 25 s endpoint. Initial/reset baseline construction is cancellable; no intermediate initializer value may
 be presented as final baseline. A repeated pause cannot advance time. A RUN at a finished
 endpoint is rejected with replay guidance. A STEP with unmet predictions is rejected just
 like RUN. Selecting a node is UI state; observation includes all nine possible resource
 nodes (up to eight replicas and DB) plus clients/cache evidence, so no inspection RPC is needed.
 
 Pending edits live in React only until validated REPLACE. The controller must PAUSE and
-await acknowledgment before enabling Apply & Restart; fields remain visibly pending. Seed
+await acknowledgment before applying a restart; fields remain visibly pending. In Explore,
+Run sends one validated REPLACE with execution intent fast; Watch uses playback. No separate
+Apply action is required. Invalid config rejects replacement and preserves old applied results.
+Guided Apply & Restart retains paused intent. Execution style never changes model inputs. Seed
 changes in guided mode restart the lesson rather than mixing references. Enter-sandbox
 REPLACE resolves the offered target from authoritative state at the cancellation boundary,
 copies applied seed/resources/cache, creates a constant-traffic 60-second run at zero paused,
@@ -62,13 +68,13 @@ its queue. Sandbox and guided use the same config validator/core. No API exposin
 | Type | Payload | Delivery rule |
 | --- | --- | --- |
 | ACK | Command identity, phase accepted/settled, status, nullable observation; previous summary for replacement | Reliable control lane, not gated on progress credit |
-| PROGRESS | Latest observation plus missing retained chart points since applied view | One posted/unapplied message maximum per active run |
+| PROGRESS | Latest observation; missing retained chart points only when subscribed | One posted/unapplied message maximum per active run |
 | FINISHED | Final observation, complete summary, prediction evaluation/explanation evidence | Reliable; invalidates any older pending progress; run frozen |
 | COMPARISON | Reference/current metadata, deltas, directions, evidence | Reliable result for bounded request |
 | ERROR | Code, human-readable message, command identity, unchanged authoritative status when available | No fabricated observations; fatal errors stop scheduling |
 
 A final STEP response may be FINISHED instead of ACK, correlated by commandId. A RUN
-acknowledgment accepts playback; later FINISHED has no new command ID and refers to that
+acknowledgment accepts execution in the selected shell style; later FINISHED has no new command ID and refers to that
 run. Payload schemas use null for unavailable rates/percentiles, successful sample count,
 units/virtual windows, and distinct outcome counts. Send aggregate observations and chart
 points, never all active request records. Continuation snapshots are internal core test/
@@ -84,8 +90,9 @@ Transport/controller failures distinguish a worker crash from simulated request 
 1. UI allocates a new runId and records old→new replacement immediately; old-run progress
    can no longer render. It sends one REPLACE targeted at old run with the new identity.
 2. Worker handles replacement between steps, captures old summary before discarding state,
-   then initializes new state. A reset additionally advances the baseline to 5 s, yielding
-   each step. ACK identifies the new run and contains any available previous summary.
+   then initializes new state. A reset advances the mode-specific baseline (Explore 60 s fast, guided 5 s paused),
+   yielding between bounded batches/steps. Fast replacement publishes accepted/settled ACKs
+   and FINISHED; settled ready state is not mislabeled as a completed result. ACK identifies the new run and contains any available previous summary.
 3. Only the reply matching pending replacement commandId/new runId may install the new view.
    Old control/final replies are consumed/discarded, not rendered. Never derive Last run
    from a stale chart if the worker failed before acknowledging its authoritative summary.
@@ -107,10 +114,15 @@ intents. Disable or coalesce further actions until replacement accepted. Read-on
 can be computed on explicit request after control settles; no polling queue.
 
 Progress is capped at ten sends per wall-clock second, with control/final replies exempt.
-This shell-only pacing does not change 100 ms virtual chart sampling. Progress uses one
+This shell-only pacing does not change 100 ms virtual chart sampling. Charts are initially
+unsubscribed. Unsubscribed ACK/PROGRESS/FINISHED views omit history (not headline metrics).
+SET_CHARTS(true) returns retained history in its ACK; false stops serialization immediately.
+Subscription survives run replacement but old-run history never does; after worker recovery
+restore the user's current selection explicitly. History toggle ACKs participate in normal
+sequence/credit handling, never rewind time, reset comparison, or recalculate core metrics. Progress uses one
 credit: worker posts one view, waits for PROGRESS_APPLIED, and keeps core
 state current while withholding additional serialization. On credit return, publish current
-view if newer. Include all retained missing chart points (at most 600), or explicit replacement
+view if newer. When subscribed, include all retained missing chart points (at most 600), or explicit replacement
 history with a truncation label; dropping transport updates must not lose chart evidence.
 Control/final output can supersede a pending progress observation. Applying a control view
 must retire older outstanding progress credit so no deadlock remains. At most one pending
@@ -141,3 +153,13 @@ progress after reset and delayed progress after a newer same-run control acknowl
 Playwright verifies real emitted-worker startup at both bases, keyboard flow, pause/reset
 under overload, readable worker-failure recovery, and visible same-seed reproducibility.
 Testing time/pacing in the shell must not introduce clock dependencies into the core.
+
+## Amendment verification (2026-11-06)
+
+Protocol v2 must reject v1 and validate execution/subscription shapes. Compare canonical
+core/final summaries for fast vs 1x/4x Watch, with charts closed/open/toggled, including
+maximum-load and 0/100% cache fixtures. Exclude IDs/style/transport history from equality,
+not authoritative counters/latencies/resources. Verify initialization, atomic Run drafts,
+invalid draft preservation, partial archive, cancellation during fast batches, mode-aware
+Reset/Replay, accepted/settled/final order, credit retirement, recovery subscription, and
+stale old history/final rejection. Headline metrics remain available without subscription.

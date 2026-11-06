@@ -1,8 +1,8 @@
 # Quickstart and Validation Guide
 
-**Phase**: Planned implementation contract. There is no application/package.json yet;
-commands below become runnable when implementation supplies the planned scripts. This
-planning phase did not install dependencies, run a model, deploy, or claim passing tests.
+**Phase**: Implemented local validation guide. The application and commands now exist.
+See validation.md for executed results; remote CI and actual deployment remain separately
+verified release gates, never inferred from local tests.
 
 References: [specification](spec.md), [data model](data-model.md),
 [worker protocol](contracts/worker-protocol.md), [UI/static contract](contracts/ui-contract.md).
@@ -25,7 +25,7 @@ A development server serves application assets locally; it is not deployed infra
 
 ## Required scripts and checks
 
-Implementation must provide the following scripts/commands; failures block merge/release:
+The following scripts/commands are provided; failures block merge/release:
 
 ```sh
 npm run typecheck
@@ -57,9 +57,31 @@ In GitHub Actions, use the pinned Node, `npm ci`, and Playwright's browser/depen
 explicit install gate. No Docker image is required. Run desktop/narrow/reduced-motion
 projects; release smoke checks additionally cover installed Firefox and WebKit.
 
+## Default Explore and optional views (amendment acceptance)
+
+1. Open a fresh session: charts/lesson closed, inputs editable, genuine completed 100-RPS
+   baseline from 60 virtual seconds, final window (50,60] s. Record fast-compute acceptance
+   to result time; baseline and one-replica 1,000-RPS runs each must settle within 5 wall seconds
+   on the SC-006 reference device, excluding asset download.
+2. Select 1,000 RPS and Run once. No Apply/predictions required. Compare Last/Current,
+   offered versus completed, failures, queues, p95, and at least two explanatory numbers.
+3. Run four then eight replicas, then cache or fast DB independently; compare matching
+   windows and verify capacity/DB explanations without entering the lesson.
+4. Show Charts: actual retained trace appears. Check values against worker observations,
+   then close/reopen without changing time/results; constant-traffic runs have no spike marker.
+   Verify charts are not imported/mounted and history is not sent while closed.
+5. Use Watch for the same inputs: playback supports pause/10 ms Step/1x/4x. Endpoint metrics
+   equal fast Run. Test edits, cancellation, Reset, Replay, stale results, and invalid drafts.
+6. Start Guided Lesson explicitly. It resets to its paused 5-second stage-1 baseline; charts
+   remain independently selected/closed. Returning Explore uses the documented mode-switch
+   replacement rule. Run the existing guided checks below.
+
+This revision is a validation guide, not evidence the amended UI is implemented. Record new
+results in validation.md; existing recorded results describe the earlier guided-first UI.
+
 ## Under-five-minute reviewer lesson
 
-1. Open the app at its base URL. Confirm “Educational simulation, not a benchmark,” baseline
+1. Open the app at its base URL and select Start Guided Lesson. Confirm “Educational simulation, not a benchmark,” baseline
    100 RPS, seed 42, one replica, normal DB, cache off, actual paused t=5 s results.
 2. Run stage 1 to 25 s; see successful throughput approximately 100 RPS and no failures.
 3. Predict stage 2's throughput, p95, and mean queue directions; Run the 100→1,000 RPS spike.
@@ -82,7 +104,7 @@ Time the five-stage journey at 1x, including predictions/explanations: under 5 m
 | D1 / SC-002 | Final (15,25] windows, baseline versus one-replica spike | 95–105 baseline RPS, zero failures; spike below 400 completed RPS with nonzero queue/failures and higher successful p95 |
 | D2 / SC-003 | Same spike, one/four/eight replicas, normal DB | Four beats one by ≥10%; four/eight 350–420 RPS and within 5%; DB ≥90% with wait |
 | D3 / SC-004 | Eight replicas: cache or fast DB separately versus stage 4 | Each ≥850 completed RPS and ≥50% fewer timeouts+rejections; matching windows |
-| Determinism | Same version/config/seed at 1x/4x, pause/step, snapshot continuation | Identical core states/metrics at matching virtual times; transport IDs/time excluded |
+| Determinism | Same version/config/seed under fast Run, chart toggles, 1x/4x, pause/step, snapshot continuation | Identical core states/metrics at matching virtual times; transport IDs/time excluded |
 | Empty sample | Before first successful completion or no successes in a window | p50/p95 N/A, sample count zero, failures separate |
 | Bounded overload | Sandbox 10,000 RPS, eight replicas, 60 s | All model/history/message/visual caps hold; in-flight shown at endpoint, no hidden drain |
 | Mode switch | Switch from a running guided stage with drafts to sandbox, then back | New identities; sandbox zero/60 s, guided 5 s/25 s; applied seed preserved, drafts noticed/discarded, old summaries archived and stale results rejected |
@@ -104,7 +126,7 @@ npm run build -- --base /
 npm run build -- --base /SystemScope/
 ```
 
-The planned build script must pass Vite flags through correctly after typecheck; `test:routing`
+The build script passes Vite flags through after typecheck; `test:routing`
 handles isolated output/mounts so the second build does not invalidate the first test.
 Publishing uses only `dist` and the appropriate base. GitHub Pages is the initial target;
 Cloudflare Pages root builds remain supported. Publishing requires the deployment workflow/
@@ -122,5 +144,5 @@ Use a documented laptop with ≥4 logical cores and 8 GiB RAM. Record device/OS/
 input config, playback speed, wall response measurements, achieved virtual speed, progress
 refresh frequency, and observed bounds. Verify pause/reset/cancel within 250 ms and ≥2
 metric refreshes/s while running. Label any playback lag; events may not be skipped.
-Passing logical bounds does not prove responsiveness, and modeled 41 MiB is not a measured
+Passing logical bounds does not prove responsiveness, and modeled 18 MiB is not a measured
 browser-memory ceiling. Stop/restart worker recovery is not a passing normal cancellation test.
